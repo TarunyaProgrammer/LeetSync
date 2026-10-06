@@ -1,19 +1,21 @@
 import GithubHandler from '../handlers/GithubHandler';
+import type { QuestionDifficulty } from '../types/Question';
+import { vi } from 'vitest';
 
 describe('GithubHandler utility methods', () => {
   beforeEach(() => {
     (global as any).chrome = {
       storage: {
         sync: {
-          get: jest.fn((keys: any, cb: any) => cb({})),
-          clear: jest.fn(),
-          set: jest.fn((_values: any, cb: any) => cb?.()),
-          remove: jest.fn((_keys: any, cb: any) => cb?.()),
+          get: vi.fn((keys: any, cb: any) => cb({})),
+          clear: vi.fn(),
+          set: vi.fn((_values: any, cb: any) => cb?.()),
+          remove: vi.fn((_keys: any, cb: any) => cb?.()),
         },
         local: {
-          get: jest.fn((keys: any, cb: any) => cb({})),
-          set: jest.fn((_values: any, cb: any) => cb?.()),
-          remove: jest.fn((_keys: any, cb: any) => cb?.()),
+          get: vi.fn((keys: any, cb: any) => cb({})),
+          set: vi.fn((_values: any, cb: any) => cb?.()),
+          remove: vi.fn((_keys: any, cb: any) => cb?.()),
         },
       },
     };
@@ -35,27 +37,27 @@ describe('GithubHandler utility methods', () => {
 
   it('returns correct difficulty color', () => {
     const handler = new GithubHandler();
-    expect(handler.getDifficultyColor('Easy')).toBe('brightgreen');
-    expect(handler.getDifficultyColor('Medium')).toBe('orange');
-    expect(handler.getDifficultyColor('Hard')).toBe('red');
+    expect(handler.getDifficultyColor('Easy' as QuestionDifficulty)).toBe('brightgreen');
+    expect(handler.getDifficultyColor('Medium' as QuestionDifficulty)).toBe('orange');
+    expect(handler.getDifficultyColor('Hard' as QuestionDifficulty)).toBe('red');
   });
 
   it('creates a difficulty badge using the difficulty color', () => {
     const handler = new GithubHandler();
-    const badge = handler.createDifficultyBadge('Medium');
+    const badge = handler.createDifficultyBadge('Medium' as QuestionDifficulty);
     expect(badge).toContain('img');
     expect(badge).toContain('Difficulty-Medium-orange');
   });
 
   it('loads token from storage', async () => {
     const handler = new GithubHandler();
-    (global as any).chrome.storage.sync.get = jest.fn((keys: any, cb: any) => cb({ github_leetsync_token: 'abc' }));
+    (global as any).chrome.storage.sync.get = vi.fn((keys: any, cb: any) => cb({ github_leetsync_token: 'abc' }));
     const token = await handler.loadTokenFromStorage();
     expect(token).toBe('abc');
   });
 
   it('returns an empty string when token is missing', async () => {
-    (global as any).chrome.storage.sync.get = jest.fn((keys: any, cb: any) => cb({}));
+    (global as any).chrome.storage.sync.get = vi.fn((keys: any, cb: any) => cb({}));
     const handler = new GithubHandler();
     const token = await handler.loadTokenFromStorage();
     expect(token).toBe('');

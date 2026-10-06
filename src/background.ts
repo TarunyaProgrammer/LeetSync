@@ -1,4 +1,9 @@
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  if (request.type === 'sync-all') {
+    startSyncAll();
+    sendResponse({ status: 'started' });
+    return;
+  }
   if (request.type === 'set-fire-icon') {
     //set icon to fire then back to normal after 2 second
 
@@ -18,6 +23,57 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   /* Will be used if we want to get messages from content scripts to background script */
   sendResponse({ status: 'OK' });
 });
+
+const sendSyncAllToTab = (tabId: number) => {
+  chrome.tabs.sendMessage(tabId, { type: 'sync-all' }, () => {
+    if (chrome.runtime.lastError) {
+      chrome.storage.sync.set({
+        github_sync_progress: {
+          state: 'error',
+          source: 'all-solved',
+          processed: 0,
+          total: 0,
+          synced: 0,
+          failed: 0,
+          message: 'Reload the LeetCode tab and try sync again.',
+          updatedAt: Date.now(),
+        },
+      });
+    }
+  });
+};
+
+const startSyncAll = () => {
+  chrome.storage.sync.set({
+    github_sync_progress: {
+      state: 'running',
+      source: 'all-solved',
+      processed: 0,
+      total: 0,
+      synced: 0,
+      failed: 0,
+      message: 'Opening LeetCode…',
+      updatedAt: Date.now(),
+    },
+  });
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    const activeTab = tabs[0];
+    if (activeTab?.id && activeTab.url?.startsWith('https://leetcode.com/')) {
+      sendSyncAllToTab(activeTab.id);
+      return;
+    }
+
+    chrome.tabs.create({ url: 'https://leetcode.com/problemset/all/', active: true }, (tab) => {
+      if (!tab.id) return;
+      const onUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+        if (tabId !== tab.id || changeInfo.status !== 'complete') return;
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        sendSyncAllToTab(tabId);
+      };
+      chrome.tabs.onUpdated.addListener(onUpdated);
+    });
+  });
+};
 chrome.cookies.get({ name: 'LEETCODE_SESSION', url: 'https://leetcode.com/' }, function (cookie) {
   if (!cookie) return;
   chrome.storage.sync.set({ leetcode_session: cookie.value }, () => {
