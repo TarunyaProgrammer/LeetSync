@@ -8,7 +8,7 @@ export const getSubmission = async (
 ): Promise<{ submissionDetails: Submission } | null> => {
   try {
     const client = getClient();
-    return client.request(GET_SUBMISSION_DETAILS, {
+    return await client.request(GET_SUBMISSION_DETAILS, {
       submissionId,
     });
   } catch (e) {
@@ -21,7 +21,7 @@ export const getAllSubmission = async (
 ): Promise<{ submissionDetails: Submission } | null> => {
   try {
     const client = getClient();
-    return client.request(GET_SUBMISSIONS, {
+    return await client.request(GET_SUBMISSIONS, {
       questionSlug,
       limit: 20,
       offset: 0,

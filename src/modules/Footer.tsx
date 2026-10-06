@@ -5,26 +5,26 @@ export const Footer = () => {
   return (
     <HStack align="center">
       <Text fontSize={'12px'}>
-        Having Issues?{' '}
+        Tarunya LeetSync{' '}
         <Text
           as="a"
           color="blue.500"
-          href="https://github.com/3ba2ii/LeetSync/issues/new/choose"
+          href="https://github.com/TarunyaProgrammer/LeetSync/issues/new/choose"
           target="_blank"
           fontWeight={'semibold'}
         >
-          Report Bug
+          Report an issue
         </Text>{' '}
         | Made with <span style={{ color: '#e25555' }}>&#9829;</span> by{' '}
         <Text
           as="a"
           color="blue.500"
-          href="https://github.com/3ba2ii"
+          href="https://github.com/TarunyaProgrammer"
           target="_blank"
           fontWeight={'semibold'}
           display="inline-block"
         >
-          @3ba2ii
+          @TarunyaProgrammer
         </Text>
       </Text>
     </HStack>

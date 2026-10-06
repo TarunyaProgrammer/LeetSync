@@ -10,7 +10,6 @@ module.exports = {
           ].filter(Boolean),
           leetcode: './src/scripts/leetcode.ts',
           background: './src/background.ts',
-          'authorize-github': './src/scripts/authorize-github.ts',
         },
         output: {
           ...webpackConfig.output,
