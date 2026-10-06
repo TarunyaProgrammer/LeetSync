@@ -13,8 +13,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(projectRoot, 'index.html'),
-        leetcode: resolve(projectRoot, 'src/scripts/leetcode.ts'),
-        background: resolve(projectRoot, 'src/background.ts'),
       },
       output: {
         entryFileNames: 'static/scripts/[name].js',
