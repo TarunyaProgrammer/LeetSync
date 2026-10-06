@@ -24,20 +24,40 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   sendResponse({ status: 'OK' });
 });
 
-const sendSyncAllToTab = (tabId: number) => {
+const setSyncStartError = (message: string) => {
+  chrome.storage.sync.set({
+    github_sync_progress: {
+      state: 'error',
+      source: 'all-solved',
+      processed: 0,
+      total: 0,
+      synced: 0,
+      failed: 0,
+      message,
+      updatedAt: Date.now(),
+    },
+  });
+};
+
+const sendSyncAllToTab = (tabId: number, retry = true) => {
   chrome.tabs.sendMessage(tabId, { type: 'sync-all' }, () => {
     if (chrome.runtime.lastError) {
-      chrome.storage.sync.set({
-        github_sync_progress: {
-          state: 'error',
-          source: 'all-solved',
-          processed: 0,
-          total: 0,
-          synced: 0,
-          failed: 0,
-          message: 'Reload the LeetCode tab and try sync again.',
-          updatedAt: Date.now(),
-        },
+      if (!retry) {
+        setSyncStartError('Could not start the LeetCode sync. Open https://leetcode.com/progress/ and try again.');
+        return;
+      }
+
+      chrome.tabs.reload(tabId, {}, () => {
+        if (chrome.runtime.lastError) {
+          setSyncStartError('Could not reload the LeetCode tab. Open https://leetcode.com/progress/ and try again.');
+          return;
+        }
+        const onUpdated = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+          if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
+          chrome.tabs.onUpdated.removeListener(onUpdated);
+          sendSyncAllToTab(tabId, false);
+        };
+        chrome.tabs.onUpdated.addListener(onUpdated);
       });
     }
   });
@@ -63,7 +83,7 @@ const startSyncAll = () => {
       return;
     }
 
-    chrome.tabs.create({ url: 'https://leetcode.com/problemset/all/', active: true }, (tab) => {
+    chrome.tabs.create({ url: 'https://leetcode.com/progress/', active: true }, (tab) => {
       if (!tab.id) return;
       const onUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
         if (tabId !== tab.id || changeInfo.status !== 'complete') return;
