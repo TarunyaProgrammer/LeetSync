@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Container,
   Heading,
   HStack,
@@ -26,6 +27,18 @@ import { Footer } from './Footer';
 import flameGif from '../assets/flame.gif';
 
 interface DashboardProps {}
+type SolvedProblem = {
+  question: { difficulty: string; questionId?: string | number };
+  timestamp: number;
+};
+type SyncProgress = {
+  state: 'running' | 'complete' | 'error';
+  processed: number;
+  total: number;
+  synced: number;
+  failed: number;
+  message?: string;
+};
 
 const LinkedGithubComponents = () => {
   const [githubUsername, setGithubUsername] = React.useState('');
@@ -85,22 +98,38 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
   const [githubRepoOwner, setGithubRepoOwner] = React.useState('');
   const [githubRepo, setGithubRepo] = React.useState('');
   const [lastSync, setLastSync] = React.useState<{ status: string; message: string } | null>(null);
+  const [syncProgress, setSyncProgress] = React.useState<SyncProgress | null>(null);
 
   const solvedProblemsToday = problemsPerDay?.[new Date().toLocaleDateString()] || 0;
 
   React.useEffect(() => {
     chrome.storage.sync.get(
-      ['problemsSolved', 'github_username', 'github_repo_owner', 'github_leetsync_repo', 'github_last_sync'],
+      [
+        'problemsSolved',
+        'github_username',
+        'github_repo_owner',
+        'github_leetsync_repo',
+        'github_last_sync',
+        'github_sync_progress',
+      ],
       (result) => {
-        const { problemsSolved, github_username, github_repo_owner, github_leetsync_repo, github_last_sync } = result;
+        const {
+          problemsSolved,
+          github_username,
+          github_repo_owner,
+          github_leetsync_repo,
+          github_last_sync,
+          github_sync_progress,
+        } = result;
         setGithubUsername(github_username);
         setGithubRepoOwner(github_repo_owner || github_username);
         setGithubRepo(github_leetsync_repo);
         setLastSync(github_last_sync || null);
+        setSyncProgress(github_sync_progress || null);
         if (!problemsSolved) return;
         let [easy, medium, hard] = [0, 0, 0];
-        const problemSolvedValues = Object.values(problemsSolved);
-        problemSolvedValues.forEach((problem: any) => {
+        const problemSolvedValues = Object.values(problemsSolved) as SolvedProblem[];
+        problemSolvedValues.forEach((problem) => {
           if (problem.question.difficulty === 'Easy') {
             easy++;
           } else if (problem.question.difficulty === 'Medium') {
@@ -120,7 +149,29 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
         setStreak(streaksCount);
       },
     );
+    const onStorageChanged = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes.github_sync_progress?.newValue) {
+        setSyncProgress(changes.github_sync_progress.newValue as SyncProgress);
+      }
+    };
+    chrome.storage.sync.onChanged.addListener(onStorageChanged);
+    return () => chrome.storage.sync.onChanged.removeListener(onStorageChanged);
   }, []);
+
+  const handleSyncAll = () => {
+    setSyncProgress({
+      state: 'running', processed: 0, total: 0, synced: 0, failed: 0,
+      message: 'Starting full LeetCode sync…',
+    });
+    chrome.runtime.sendMessage({ type: 'sync-all' }, () => {
+      if (chrome.runtime.lastError) {
+        setSyncProgress({
+          state: 'error', processed: 0, total: 0, synced: 0, failed: 0,
+          message: 'Could not start sync. Reload the extension and try again.',
+        });
+      }
+    });
+  };
 
   return (
     <Container
@@ -191,6 +242,26 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
             {lastSync.message}
           </Text>
         )}
+        <HStack w="100%" justify="space-between" align="center">
+          <Button
+            size="sm"
+            colorScheme="blue"
+            onClick={handleSyncAll}
+            isLoading={syncProgress?.state === 'running'}
+            loadingText={syncProgress?.total ? `${syncProgress.processed}/${syncProgress.total}` : 'Starting'}
+          >
+            Sync all LeetCode solutions
+          </Button>
+          {syncProgress?.message && (
+            <Text
+              fontSize="xs"
+              color={syncProgress.state === 'error' ? 'red.600' : 'gray.600'}
+              textAlign="right"
+            >
+              {syncProgress.message}
+            </Text>
+          )}
+        </HStack>
         <HStack w="100%" align="center" justify={'center'}>
           <StreakCounter problemsPerDay={problemsPerDay} />
         </HStack>

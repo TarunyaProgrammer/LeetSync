@@ -86,3 +86,33 @@ export const GET_SUBMISSIONS = `query submissionList($offset: Int!, $limit: Int!
 }
 }
 `;
+
+export const GET_USER_STATUS = `query userStatus {
+  userStatus {
+    isSignedIn
+    username
+  }
+}`;
+
+export const GET_SOLVED_PROBLEMS = `query userProgressQuestionList($filters: UserProgressQuestionListInput) {
+  userProgressQuestionList(filters: $filters) {
+    totalNum
+    questions {
+      frontendId
+      title
+      titleSlug
+      difficulty
+      lastSubmittedAt
+    }
+  }
+}`;
+
+export const GET_RECENT_ACCEPTED_SUBMISSIONS = `query recentAcSubmissionList($username: String!, $limit: Int!) {
+  recentAcSubmissionList(username: $username, limit: $limit) {
+    id
+    title
+    titleSlug
+    lang
+    timestamp
+  }
+}`;

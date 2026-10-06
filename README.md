@@ -50,6 +50,8 @@ Then open `chrome://extensions`, enable Developer mode, choose **Load unpacked**
 
 The dashboard shows the latest GitHub sync result. A failed sync includes the GitHub error message there.
 
+Use **Sync all LeetCode solutions** on the dashboard to backfill your previously solved problems. The extension reads your solved-problem list, fetches the latest accepted solution for each problem, and pushes them one by one with progress shown in the dashboard. This can take several minutes for a large account. If LeetCode does not expose the full solved list for the account, the extension falls back to the latest accepted-submission window and reports that result through the sync status.
+
 ## Why pasting a repository URL is not enough
 
 A repository URL is public information and only contains an owner and repository name. GitHub must still know that the extension is allowed to write to that repository. The fine-grained token proves your identity and grants the `Contents: Read and write` permission. During setup, Tarunya LeetSync calls `GET /user` to validate the token and `GET /repos/{owner}/{repo}` to verify that the selected repository is visible and writable.
@@ -65,8 +67,9 @@ A repository URL is public information and only contains an owner and repository
 ## Development
 
 ```bash
-npm test -- --watchAll=false
+npm test
 npm run build
+npm audit
 ```
 
 This fork is intentionally maintained as a personal rebrand and does not use the upstream project's OAuth application or issue tracker.

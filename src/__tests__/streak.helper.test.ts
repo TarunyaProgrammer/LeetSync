@@ -4,6 +4,7 @@ import {
   hasSolvedAProblemToday,
   generateTitle,
 } from '../utils/streak.helper';
+import { vi } from 'vitest';
 
 const getDaysBefore = (numberOfDays: number) => {
   return new Date(new Date().getTime() - numberOfDays * 24 * 60 * 60 * 1000);
@@ -11,13 +12,13 @@ const getDaysBefore = (numberOfDays: number) => {
 
 describe('Streak Helper Functions', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const mockDate = new Date('2024-01-15T12:00:00Z');
-    jest.setSystemTime(mockDate);
+    vi.setSystemTime(mockDate);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('getTotalNumberOfStreaks', () => {
