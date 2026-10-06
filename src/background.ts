@@ -4,12 +4,12 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
     chrome.action.setIcon(
       {
-        path: '../../icon-fire-96x96.gif',
+        path: 'icon-fire-96x96.gif',
       },
       () => {
         setTimeout(() => {
           chrome.action.setIcon({
-            path: '../../logo96.png',
+            path: 'logo96.png',
           });
         }, 5000);
       },
@@ -62,7 +62,7 @@ chrome.webRequest.onCompleted.addListener(
       details.url.startsWith('https://leetcode.com/problems/') &&
       details.url.includes('/submit/')
     ) {
-      const questionSlug = details.url.match(/\/problems\/(.*)\/submit/)?.[1] ?? null;
+      const questionSlug = details.url.match(/\/problems\/([^/?#]+)\/submit/)?.[1] ?? null;
       if (!questionSlug) return;
       // Wait 5 secs to complete the checks
       // Send a message to the content script to get the submission

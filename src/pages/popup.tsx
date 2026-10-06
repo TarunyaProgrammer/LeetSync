@@ -13,6 +13,7 @@ interface PopupProps {}
 type UserGlobalData = {
   github_leetsync_token: string;
   github_username: string;
+  github_repo_owner: string;
   github_leetsync_repo: string;
   leetcode_session: string;
 };
@@ -21,6 +22,7 @@ const hasCompletedRequirements = (userData: Partial<UserGlobalData>): boolean =>
   return !!(
     userData.github_leetsync_token &&
     userData.github_username &&
+    userData.github_repo_owner &&
     userData.github_leetsync_repo &&
     userData.leetcode_session
   );
@@ -28,16 +30,27 @@ const hasCompletedRequirements = (userData: Partial<UserGlobalData>): boolean =>
 const getUserData = async (): Promise<Partial<UserGlobalData>> => {
   let userData: Partial<UserGlobalData> = {};
 
-  await chrome.storage.sync
-    .get(['github_leetsync_token', 'github_username', 'github_leetsync_repo', 'leetcode_session'])
-    .then((result) => {
-      userData = {
-        github_leetsync_token: result.github_leetsync_token,
-        github_username: result.github_username,
-        github_leetsync_repo: result.github_leetsync_repo,
-        leetcode_session: result.leetcode_session,
-      };
-    });
+  const [sync, local] = await Promise.all([
+    chrome.storage.sync.get([
+      'github_username',
+      'github_repo_owner',
+      'github_leetsync_repo',
+      'leetcode_session',
+    ]),
+    chrome.storage.local.get(['github_leetsync_token']),
+  ]);
+  const token = local.github_leetsync_token || sync.github_leetsync_token;
+  if (!local.github_leetsync_token && sync.github_leetsync_token) {
+    chrome.storage.local.set({ github_leetsync_token: sync.github_leetsync_token });
+    chrome.storage.sync.remove('github_leetsync_token');
+  }
+  userData = {
+    github_leetsync_token: token,
+    github_username: sync.github_username,
+    github_repo_owner: sync.github_repo_owner || sync.github_username,
+    github_leetsync_repo: sync.github_leetsync_repo,
+    leetcode_session: sync.leetcode_session,
+  };
 
   return userData;
 };
@@ -100,7 +113,7 @@ const PopupPage: React.FC<PopupProps> = () => {
           setUserData(result);
         }
         let newStep = 3;
-        if (!result.github_leetsync_token && !result.github_username) {
+        if (!result.github_leetsync_token) {
           newStep = 0;
         } else if (!result.leetcode_session) {
           newStep = 2;

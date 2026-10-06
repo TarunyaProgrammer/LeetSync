@@ -29,14 +29,19 @@ interface DashboardProps {}
 
 const LinkedGithubComponents = () => {
   const [githubUsername, setGithubUsername] = React.useState('');
+  const [githubRepoOwner, setGithubRepoOwner] = React.useState('');
   const [githubRepo, setGithubRepo] = React.useState('');
 
   useEffect(() => {
-    chrome.storage.sync.get(['github_username', 'github_leetsync_repo'], (result) => {
-      const { github_username, github_leetsync_repo } = result;
+    chrome.storage.sync.get(
+      ['github_username', 'github_repo_owner', 'github_leetsync_repo'],
+      (result) => {
+      const { github_username, github_repo_owner, github_leetsync_repo } = result;
       setGithubUsername(github_username);
+      setGithubRepoOwner(github_repo_owner || github_username);
       setGithubRepo(github_leetsync_repo);
-    });
+      },
+    );
   }, []);
 
   return (
@@ -44,12 +49,12 @@ const LinkedGithubComponents = () => {
       <Text fontSize={'xs'}>
         Linked with{' '}
         <Link
-          href={`https://github.com/${githubUsername}/${githubRepo}`}
+          href={`https://github.com/${githubRepoOwner || githubUsername}/${githubRepo}`}
           target="_blank"
           fontWeight={'semibold'}
           fontFamily={'Mono, monospace, sans-serif'}
         >
-          {githubUsername}/{githubRepo}
+          {githubRepoOwner || githubUsername}/{githubRepo}
         </Link>
         , Unlink by clicking{' '}
         <IconButton
@@ -77,17 +82,21 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
     [date: string]: number;
   }>();
   const [githubUsername, setGithubUsername] = React.useState('');
+  const [githubRepoOwner, setGithubRepoOwner] = React.useState('');
   const [githubRepo, setGithubRepo] = React.useState('');
+  const [lastSync, setLastSync] = React.useState<{ status: string; message: string } | null>(null);
 
   const solvedProblemsToday = problemsPerDay?.[new Date().toLocaleDateString()] || 0;
 
   React.useEffect(() => {
     chrome.storage.sync.get(
-      ['problemsSolved', 'github_username', 'github_leetsync_repo'],
+      ['problemsSolved', 'github_username', 'github_repo_owner', 'github_leetsync_repo', 'github_last_sync'],
       (result) => {
-        const { problemsSolved, github_username, github_leetsync_repo } = result;
+        const { problemsSolved, github_username, github_repo_owner, github_leetsync_repo, github_last_sync } = result;
         setGithubUsername(github_username);
+        setGithubRepoOwner(github_repo_owner || github_username);
         setGithubRepo(github_leetsync_repo);
+        setLastSync(github_last_sync || null);
         if (!problemsSolved) return;
         let [easy, medium, hard] = [0, 0, 0];
         const problemSolvedValues = Object.values(problemsSolved);
@@ -160,7 +169,7 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
                   icon={<BiLink />}
                   size="lg"
                   onClick={() => {
-                    window.open(`https://github.com/${githubUsername}/${githubRepo}`, '_blank');
+                    window.open(`https://github.com/${githubRepoOwner || githubUsername}/${githubRepo}`, '_blank');
                   }}
                 />
               </Tooltip>
@@ -172,6 +181,16 @@ const Dashboard: React.FC<DashboardProps> = ({}) => {
             </Text>
           </Box>
         </HStack>
+        {lastSync && (
+          <Text
+            w="100%"
+            fontSize="sm"
+            color={lastSync.status === 'error' ? 'red.600' : 'green.600'}
+          >
+            {lastSync.status === 'error' ? 'Last sync failed: ' : 'Last sync: '}
+            {lastSync.message}
+          </Text>
+        )}
         <HStack w="100%" align="center" justify={'center'}>
           <StreakCounter problemsPerDay={problemsPerDay} />
         </HStack>

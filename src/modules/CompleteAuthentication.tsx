@@ -12,48 +12,50 @@ import {
 import { useEffect, useState } from 'react';
 import { BsGithub } from 'react-icons/bs';
 import { SiLeetcode } from 'react-icons/si';
-import { useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
-import { GITHUB_REDIRECT_URI, GITHUB_CLIENT_ID } from '../constants';
 import { GithubHandler } from '../handlers';
 import { Footer } from './Footer';
 
 const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [token, setToken] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleClicked = () => {
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${GITHUB_REDIRECT_URI}&scope=repo`;
-
-    chrome.tabs.create({ url: authUrl, active: true }, function (x) {
-      chrome.tabs.getCurrent(function (tab) {
-        if (!tab?.id) return;
-        chrome.tabs.remove(tab?.id, function () {});
-      });
-    });
-  };
-  useEffect(() => {
-    if (accessToken && accessToken.length > 0) {
+  const handleConnect = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await new GithubHandler().connectWithToken(token);
       nextStep();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not connect to GitHub.');
+    } finally {
+      setLoading(false);
     }
-  }, [accessToken]);
-
-  useEffect(() => {
-    chrome.storage.sync.get(['github_leetsync_token'], (result) => {
-      if (result.github_leetsync_token) {
-        setAccessToken(result.github_leetsync_token);
-      }
-    });
-  }, []);
+  };
 
   return (
     <VStack w="100%">
       <VStack pb={4}>
-        <Heading size="md">Authorize with GitHub</Heading>
+        <Heading size="md">Connect GitHub</Heading>
         <Text color="GrayText" fontSize={'sm'} w="95%" textAlign={'center'}>
-          Before we can push code to your selected repository, we need access to your GitHub
-          account. <br />
+          Create a fine-grained GitHub token with <b>Contents: Read and write</b> access to your
+          target repository, then paste it here.
         </Text>
       </VStack>
+      <FormControl isRequired isInvalid={!!error}>
+        <Input
+          type="password"
+          placeholder="github_pat_..."
+          value={token}
+          onChange={(event) => setToken(event.target.value)}
+        />
+        {!error ? (
+          <FormHelperText fontSize="xs">
+            GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens.
+          </FormHelperText>
+        ) : <FormErrorMessage fontSize="xs">{error}</FormErrorMessage>}
+      </FormControl>
       <Button
         colorScheme={'blackAlpha'}
         bg="blackAlpha.800"
@@ -63,11 +65,13 @@ const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
         border={'1px solid'}
         borderColor={'gray.200'}
         _hover={{ bg: 'blackAlpha.700' }}
-        onClick={handleClicked}
+        onClick={handleConnect}
+        isLoading={loading}
+        isDisabled={!token.trim() || loading}
       >
-        Login with GitHub
+        Verify GitHub token
       </Button>
-      <small>You can revoke access at any time.</small>
+      <small>The token is stored locally in this browser and can be revoked at any time.</small>
     </VStack>
   );
 };
@@ -115,41 +119,22 @@ const AuthorizeWithLeetCode = ({ nextStep }: { nextStep: Function }) => {
   );
 };
 const SelectRepositoryStep = ({ nextStep }: { nextStep: Function }) => {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [repositoryURL, setRepositoryURL] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-
   const handleLinkRepo = async () => {
     if (!repositoryURL) return setError('Repository URL is required');
-    if (!accessToken) return setError('Access token is required');
-
-    const repoName = repositoryURL.split('/').pop();
-    const username = repositoryURL.split('/').slice(-2)[0];
-    if (!repoName || !username) {
-      return setError('Invalid repository URL');
-    }
-
+    setError(null);
     setLoading(true);
-    const github = new GithubHandler();
-    const isFound = await github.checkIfRepoExists(`${username}/${repoName}`);
-    setLoading(false);
-    if (!isFound) {
-      return setError('Repository not found');
+    try {
+      await new GithubHandler().linkRepository(repositoryURL);
+      nextStep();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not link repository.');
+    } finally {
+      setLoading(false);
     }
-    chrome.storage.sync.set({ github_leetsync_repo: repoName }, () => {
-      console.log('Repository Linked Successfully');
-      navigate(0);
-    });
   };
-
-  useEffect(() => {
-    chrome.storage.sync.get(['github_leetsync_token'], (result) => {
-      if (!result.github_leetsync_token) return;
-      setAccessToken(result.github_leetsync_token);
-    });
-  }, []);
 
   return (
     <VStack w="100%">
@@ -167,13 +152,14 @@ const SelectRepositoryStep = ({ nextStep }: { nextStep: Function }) => {
             placeholder="Repository URL"
             value={repositoryURL}
             onChange={(e) => {
+              setError(null);
               setRepositoryURL(e.target.value);
             }}
           />
         </InputGroup>
         {!error ? (
           <FormHelperText fontSize={'xs'}>
-            Paste the repository URL to push your submissions to.
+          Example: https://github.com/your-name/your-repository
           </FormHelperText>
         ) : (
           <FormErrorMessage fontSize={'xs'}>{error}</FormErrorMessage>
@@ -199,9 +185,9 @@ const StartOnboarding = ({ nextStep }: { nextStep: Function }) => {
     <VStack w="100%" h="100%" align="center" justify={'center'}>
       <Logo />
       <VStack w="100%">
-        <Heading size="lg">Welcome 👋</Heading>
+          <Heading size="lg">Welcome to Tarunya LeetSync 👋</Heading>
         <Text color="GrayText" fontSize={'sm'} w="90%" textAlign={'center'}>
-          LeetSync is a Chrome extension that syncs your submissions to GitHub. Setup now.
+          Sync your accepted LeetCode submissions to your own GitHub repository.
         </Text>
       </VStack>
 

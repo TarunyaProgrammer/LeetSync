@@ -44,6 +44,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = () => {
 
   const [isOpen, setOpen] = useState<'unlink' | 'clear' | 'subdirectory' | null>(null);
   const [githubUsername, setGithubUsername] = React.useState('');
+  const [githubRepoOwner, setGithubRepoOwner] = React.useState('');
   const [githubRepo, setGithubRepo] = React.useState('');
   const [newRepoURL, setNewRepoURL] = useState('');
   const [accessToken, setAccessToken] = useState('');
@@ -54,6 +55,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = () => {
     chrome.storage.sync.set(
       {
         github_leetsync_repo: null,
+        github_repo_owner: null,
       },
       () => {
         setGithubRepo('');
@@ -64,31 +66,25 @@ const SettingsMenu: React.FC<SettingsMenuProps> = () => {
   };
   const handleLinkRepo = async () => {
     if (!newRepoURL) return setError('Repository URL is required');
-    if (!accessToken) return setError('Access token is required');
-
-    const repoName = newRepoURL.split('/').pop();
-    const username = newRepoURL.split('/').slice(-2)[0];
-    if (!repoName || !username) {
-      return setError('Invalid repository URL');
-    }
-
+    setError('');
     setLoading(true);
-    const github = new GithubHandler();
-    const isFound = await github.checkIfRepoExists(`${username}/${repoName}`);
-    setLoading(false);
-    if (!isFound) {
-      return setError('Repository not found');
-    }
-    chrome.storage.sync.set({ github_leetsync_repo: repoName }, () => {
-      console.log('Repository Linked Successfully');
-      setGithubRepo(repoName);
+    try {
+      const repository = await new GithubHandler().linkRepository(newRepoURL);
+      setGithubRepoOwner(repository.owner);
+      setGithubRepo(repository.name);
+      setNewRepoURL('');
       setOpen(null);
-    });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not link repository.');
+    } finally {
+      setLoading(false);
+    }
   };
   const resetAll = () => {
-    chrome.storage.sync.clear(() => {
-      window.location.reload();
-    });
+    Promise.all([
+      new Promise<void>((resolve) => chrome.storage.sync.clear(() => resolve())),
+      new Promise<void>((resolve) => chrome.storage.local.clear(() => resolve())),
+    ]).then(() => window.location.reload());
   };
 
   const trimSubdirectory = (text: string) => {
@@ -120,23 +116,26 @@ const SettingsMenu: React.FC<SettingsMenuProps> = () => {
     chrome.storage.sync.get(
       [
         'github_username',
+        'github_repo_owner',
         'github_leetsync_repo',
-        'github_leetsync_token',
         'github_leetsync_subdirectory',
       ],
       (result) => {
         const {
           github_username,
+          github_repo_owner,
           github_leetsync_repo,
-          github_leetsync_token,
           github_leetsync_subdirectory,
         } = result;
         setGithubUsername(github_username);
+        setGithubRepoOwner(github_repo_owner || github_username);
         setGithubRepo(github_leetsync_repo);
-        setAccessToken(github_leetsync_token);
         setSubdirectoryValue(github_leetsync_subdirectory);
       },
     );
+    chrome.storage.local.get(['github_leetsync_token'], (result) => {
+      setAccessToken(result.github_leetsync_token);
+    });
   }, []);
 
   if (!githubUsername || !githubRepo || !accessToken) return null;
@@ -151,7 +150,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = () => {
               {githubUsername}
             </Text>
             <Text fontSize={'xs'} color={'gray.500'}>
-              {githubRepo}
+              {githubRepoOwner}/{githubRepo}
             </Text>
           </VStack>
         </HStack>
@@ -266,7 +265,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = () => {
                     <FormHelperText fontSize={'xs'}>
                       You next submissions will be uploaded at{' '}
                       <Code fontSize="xs">
-                        {`3ba2ii/leetcode-problem-solving/${(subdirectory && trimSubdirectory(subdirectory)) || ''}`}
+                        {`${githubRepoOwner}/${githubRepo}/${(subdirectory && trimSubdirectory(subdirectory)) || ''}`}
                       </Code>
                     </FormHelperText>
                   ) : (

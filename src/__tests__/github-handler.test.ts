@@ -1,11 +1,5 @@
 import GithubHandler from '../handlers/GithubHandler';
 
-jest.mock('../constants', () => ({
-  GITHUB_CLIENT_ID: '',
-  GITHUB_CLIENT_SECRET: '',
-  GITHUB_REDIRECT_URI: '',
-}));
-
 describe('GithubHandler utility methods', () => {
   beforeEach(() => {
     (global as any).chrome = {
@@ -13,6 +7,13 @@ describe('GithubHandler utility methods', () => {
         sync: {
           get: jest.fn((keys: any, cb: any) => cb({})),
           clear: jest.fn(),
+          set: jest.fn((_values: any, cb: any) => cb?.()),
+          remove: jest.fn((_keys: any, cb: any) => cb?.()),
+        },
+        local: {
+          get: jest.fn((keys: any, cb: any) => cb({})),
+          set: jest.fn((_values: any, cb: any) => cb?.()),
+          remove: jest.fn((_keys: any, cb: any) => cb?.()),
         },
       },
     };
@@ -22,6 +23,14 @@ describe('GithubHandler utility methods', () => {
     const handler = new GithubHandler();
     expect(handler.getProblemExtension('Python')).toBe('.py');
     expect(handler.getProblemExtension('JavaScript')).toBe('.js');
+  });
+
+  it('parses a GitHub repository URL without losing the owner', async () => {
+    const { parseRepositoryUrl } = await import('../handlers/GithubHandler');
+    expect(parseRepositoryUrl('https://github.com/owner/solutions.git')).toEqual({
+      owner: 'owner',
+      name: 'solutions',
+    });
   });
 
   it('returns correct difficulty color', () => {
@@ -45,13 +54,10 @@ describe('GithubHandler utility methods', () => {
     expect(token).toBe('abc');
   });
 
-  it('returns empty string and clears storage when token missing', async () => {
-    const clear = jest.fn();
+  it('returns an empty string when token is missing', async () => {
     (global as any).chrome.storage.sync.get = jest.fn((keys: any, cb: any) => cb({}));
-    (global as any).chrome.storage.sync.clear = clear;
     const handler = new GithubHandler();
     const token = await handler.loadTokenFromStorage();
     expect(token).toBe('');
-    expect(clear).toHaveBeenCalled();
   });
 });

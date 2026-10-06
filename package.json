@@ -1,6 +1,6 @@
 {
-  "name": "leetsync-react-app",
-  "version": "0.1.0",
+  "name": "tarunya-leetsync",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@chakra-ui/react": "^2.5.2",
