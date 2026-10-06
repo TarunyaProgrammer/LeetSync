@@ -16,7 +16,6 @@ const buildExtensionScript = async (entry, fileName, globalName) => {
         input: resolve(projectRoot, entry),
         output: {
           format: 'iife',
-          inlineDynamicImports: true,
           entryFileNames: fileName,
           name: globalName,
         },
