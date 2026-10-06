@@ -123,11 +123,12 @@ const SelectRepositoryStep = ({ nextStep }: { nextStep: Function }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const handleLinkRepo = async () => {
-    if (!repositoryURL) return setError('Repository URL is required');
+    const value = repositoryURL.trim();
+    if (!value) return setError('Repository URL is required');
     setError(null);
     setLoading(true);
     try {
-      await new GithubHandler().linkRepository(repositoryURL);
+      await new GithubHandler().linkRepository(value);
       nextStep();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not link repository.');
@@ -170,7 +171,7 @@ const SelectRepositoryStep = ({ nextStep }: { nextStep: Function }) => {
         w="100%"
         onClick={handleLinkRepo}
         isLoading={loading}
-        isDisabled={loading || !repositoryURL}
+        isDisabled={loading || !repositoryURL.trim()}
         size="sm"
       >
         Link Repository

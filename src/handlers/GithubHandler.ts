@@ -15,13 +15,25 @@ export interface GithubRepository { owner: string; name: string; }
 type StorageAreaName = 'sync' | 'local';
 
 const getStorage = (area: StorageAreaName, keys: string | string[]) =>
-  new Promise<Record<string, any>>((resolve) => {
-    chrome.storage[area].get(keys, (result) => resolve(result));
+  new Promise<Record<string, any>>((resolve, reject) => {
+    chrome.storage[area].get(keys, (result) => {
+      const error = chrome.runtime?.lastError;
+      if (error) return reject(new Error(error.message));
+      resolve(result);
+    });
   });
 const setStorage = (area: StorageAreaName, values: Record<string, any>) =>
-  new Promise<void>((resolve) => chrome.storage[area].set(values, () => resolve()));
+  new Promise<void>((resolve, reject) => chrome.storage[area].set(values, () => {
+    const error = chrome.runtime?.lastError;
+    if (error) return reject(new Error(error.message));
+    resolve();
+  }));
 const removeStorage = (area: StorageAreaName, keys: string | string[]) =>
-  new Promise<void>((resolve) => chrome.storage[area].remove(keys, () => resolve()));
+  new Promise<void>((resolve, reject) => chrome.storage[area].remove(keys, () => {
+    const error = chrome.runtime?.lastError;
+    if (error) return reject(new Error(error.message));
+    resolve();
+  }));
 
 const encodePath = (path: string) =>
   path.split('/').filter(Boolean).map((part) => encodeURIComponent(part)).join('/');
@@ -91,7 +103,18 @@ export default class GithubHandler {
     headers.set('Accept', 'application/vnd.github+json');
     headers.set('X-GitHub-Api-Version', '2022-11-28');
     if (token) headers.set('Authorization', `Bearer ${token}`);
-    return fetch(`${this.base_url}${path}`, { ...init, headers });
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    try {
+      return await fetch(`${this.base_url}${path}`, { ...init, headers, signal: controller.signal });
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === 'AbortError') {
+        throw new Error('GitHub did not respond within 15 seconds. Check your internet connection and try again.');
+      }
+      throw new Error('Could not reach GitHub. Check your internet connection and try again.');
+    } finally {
+      window.clearTimeout(timeout);
+    }
   }
 
   async connectWithToken(token: string): Promise<GithubUser> {
